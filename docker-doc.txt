@@ -1,0 +1,10 @@
+docker常用命令说明: 
+
+1. 删除所有容器
+docker rm -f `docker ps -a -q`
+
+2. 删除所有镜像
+docker rmi -f `docker images -q`
+
+3. 删除tag为none的镜像
+docker images|grep none|awk '{print $3 }'|xargs docker rmi -f

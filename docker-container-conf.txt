@@ -1,0 +1,28 @@
+mysql environment支持变量
+    MYSQL_ROOT_PASSWORD ： root用户的密码，这里设置的初始化密码为`123456`；
+
+    MYSQL_DATABASE ： 运行时需要创建的数据库名称；
+
+    MYSQL_USER ： 运行时需要创建用户名，与MYSQL_PASSWORD一起使用；
+
+    MYSQL_PASSWORD ： 运行时需要创建的用户名对应的密码，与MYSQL_USER一起使用；
+
+    MYSQL_ALLOW_EMPTY_PASSWORD ： 是否允许root用户的密码为空，该参数对应的值为:yes；
+
+    MYSQL_RANDOM_ROOT_PASSWORD：为root用户生成随机密码；
+
+    MYSQL_ONETIME_PASSWORD ： 设置root用户的密码必须在第一次登陆时修改（只对5.6以上的版本支持）。
+
+    MYSQL_ROOT_PASSWORD 和 MYSQL_RANDOM_ROOT_PASSWORD 两者必须有且只有一个。
+
+
+rabbitmq environment支持变量
+    RABBITMQ_NODE_HOST_PORT=5672  #队列监听端口
+    
+    RABBITMQ_MANAGEMENT_HTTP_HOST_PORT=15672  #管理后台http监听端口
+    
+    RABBITMQ_MANAGEMENT_HTTPS_HOST_PORT=15671  #管理后台https监听端口
+
+    RABBITMQ_DEFAULT_USER=admin  #管理后台登录用户名
+
+    RABBITMQ_DEFAULT_PASS=admin  #管理后台登录密码

@@ -1,0 +1,140 @@
+version: '3'
+
+networks:
+  front:
+  backend:
+
+
+services:
+
+### NGINX #########################################
+    nginx:
+      build:
+        context: ./nginx
+        args:
+          - PHP_UPSTREAM_CONTAINER=php-fpm
+          - PHP_UPSTREAM_PORT=${FPM_LISTEN_PORT}
+      volumes:
+        - ${APPCODE_ROOT_PATH}:/var/www
+        - ${CONFIG_PATH}/nginx:/etc/nginx/sites-available/
+      ports:
+        - "80:80"
+        - "443:443"
+      depends_on:
+        - php-fpm
+      container_name: nginx
+      networks:
+        - front
+
+### php-fpm #########################################
+    php-fpm:
+      build:
+        context: ./php-fpm
+        args:
+          - INSTALL_PHP_VERSION=${PHP_VERSION}
+      expose:
+        - "${FPM_LISTEN_PORT}"
+      networks:
+        - front
+        - backend
+      container_name: php-fpm
+      volumes:
+        - ${APPCODE_ROOT_PATH}:/var/www
+
+### php-cli #########################################
+    php-cli:
+      build:
+        context: ./php-cli
+        args:
+          - INSTALL_PHP_VERSION=${PHP_VERSION}
+          - INSTALL_SWOOLE_VERSION=${SWOOLE_VERSION}
+      # expose:
+      #   - "9501"
+      #   - "9502"
+      ports:
+        - "9501:9501"
+        - "9502:9502"
+      networks:
+        - front
+        - backend
+      container_name: php-cli
+      tty: true
+      volumes:
+        - ${APPCODE_ROOT_PATH}:/var/www
+        - ${CONFIG_PATH}/php:/usr/local/etc/php/
+
+### mysql #########################################
+    mysql:
+      build:
+        context: ./mysql
+        args:
+          - MYSQL_VERSION=${MYSQL_VERSION}
+      environment:
+        - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+        - MYSQL_ROOT_HOST=${MYSQL_ROOT_HOST}
+      volumes:
+        - ${MYSQLDATA_PATH}/:/var/lib/mysql
+      ports:
+        - "${MYSQL_PORT}:3306"
+      networks:
+        - backend
+      container_name: mysql
+
+### redis #########################################
+    redis:
+      build: ./redis
+      volumes:
+        - ${REDISDATA_PATH}:/data
+      ports:
+        - "${REDIS_PORT}:6379"
+      networks:
+        - backend
+      container_name: redis
+
+### rabbitmq #########################################
+    # rabbitmq:
+    #   build:
+    #     context: ./rabbitmq
+    #   environment:
+    #     - RABBITMQ_DEFAULT_USER=${RABBITMQ_DEFAULT_USER}
+    #     - RABBITMQ_DEFAULT_PASS=${RABBITMQ_DEFAULT_PASS}
+    #   ports:
+    #     - "${RABBITMQ_NODE_HOST_PORT}:5672"
+    #     - "${RABBITMQ_MANAGEMENT_HTTP_HOST_PORT}:15672"
+    #     - "${RABBITMQ_MANAGEMENT_HTTPS_HOST_PORT}:15671"
+    #   volumes:
+    #     - ${RABBITMQDATA_PATH}/:/var/lib/rabbitmq
+    #   networks:
+    #     - backend
+    #   container_name: rabbitmq
+
+### elasticsearch #########################################
+    # elasticsearch:
+    #   build:
+    #     context: ./elasticsearch
+    #   container_name: elasticsearch
+    #   networks:
+    #     - backend
+    #   volumes:
+    #     - ${ES_DATA_PATH}/:/var/lib/elasticsearch
+    #   environment:
+    #     - discovery.type=single-node
+    #   ports:
+    #     - "${ES_PORT}:9200"
+
+    # kibana:
+    #   build:
+    #     context: ./kibana
+    #     args:
+    #       - ES_VERSION=${ES_VERSION}
+    #   container_name: kibana
+    #   environment:
+    #     - I18N_LOCALE=zh-CN
+    #     - XPACK_GRAPH_ENABLED=true
+    #     - TIMELION_ENABLED=true
+    #     - XPACK_MONITORING_COLLECTION_ENABLED="true"
+    #     - ELASTICSEARCH_HOSTS="http://elasticsearch:9200"
+    #   ports:
+    #     - "${KIBANA_PORT}:5601"
+    #   networks:
+    #     - backend

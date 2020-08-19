@@ -1,0 +1,6 @@
+1. 关闭安全策略
+vi /etc/selinux/config 将SELINUX=enforcing改为SELINUX=disabled
+2. 关闭防火墙
+systemctl disable firewalld.service
+
+linux配置修改完成之后需要reboot

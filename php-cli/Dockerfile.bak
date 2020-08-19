@@ -1,0 +1,75 @@
+ARG INSTALL_PHP_VERSION
+FROM php:${INSTALL_PHP_VERSION}-cli-alpine
+
+ARG INSTALL_PHP_VERSION
+#COPY ./ini/php${INSTALL_PHP_VERSION}.ini /usr/local/etc/php/php.ini
+RUN cp /usr/local/etc/php/php.ini-development /usr/local/etc/php/php.ini
+sed -i "s/memory_limit = 128M/memory_limit = 512M/" /usr/local/etc/php/php.ini
+
+RUN pear config-set php_ini /usr/local/etc/php/php.ini
+
+RUN echo "http://mirrors.aliyun.com/alpine/latest-stable/main/" > /etc/apk/repositories \
+  	&& echo "http://mirrors.aliyun.com/alpine/latest-stable/community/" >> /etc/apk/repositories \
+	&& apk add --no-cache ca-certificates \
+	&& apk update \
+	&& apk upgrade
+
+RUN apk add -U tzdata \
+	&& cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
+    	&& apk del tzdata
+
+RUN apk add git \
+	&& curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/bin/ --filename=composer \
+	&& apk add autoconf \
+	&& apk add gcc g++ make libffi-dev openssl-dev
+
+RUN set -ex \
+	&& docker-php-ext-install bcmath \
+	&& docker-php-ext-install sockets \
+	&& docker-php-ext-install sysvshm \
+	&& docker-php-ext-install sysvsem \
+	&& docker-php-ext-install sysvmsg \
+	&& docker-php-ext-install pdo_mysql \
+	&& docker-php-ext-install iconv
+
+RUN set -ex \
+       && pecl channel-update pecl.php.net \
+       && pecl install protobuf \
+       && apk add libpng-dev freetype-dev libjpeg-turbo-dev zstd-dev \
+       && docker-php-ext-configure gd \
+       && docker-php-ext-install -j$(nproc) gd \
+       && pecl install igbinary \
+       && docker-php-ext-enable igbinary \
+       && printf "\y" | pecl install -o -f redis \
+       && docker-php-ext-enable redis
+
+ARG INSTALL_SWOOLE_VERSION=false
+RUN if [ ${INSTALL_SWOOLE_VERSION} ]; then \
+	cd /tmp && mkdir -p swoole \
+	&& curl -SL "https://github.com/swoole/swoole-src/archive/${INSTALL_SWOOLE_VERSION}.tar.gz" -o swoole.tar.gz \
+        && tar -xf swoole.tar.gz -C swoole --strip-components=1 \
+        && rm swoole.tar.gz \
+            && ( \
+		  cd swoole \
+		  && phpize \
+	  	  && ./configure --enable-mysqlnd --enable-openssl --enable-sockets --enable-http2 \
+		  && make -j$(nproc) && make install \
+                ) \
+        && docker-php-ext-enable swoole \
+        && echo "swoole.use_shortname = 'Off'" >> /usr/local/etc/php/conf.d/docker-php-ext-swoole.ini \
+	&& rm -r /tmp/swoole \
+;fi
+
+RUN cd /tmp && mkdir -p rabbitc \
+	&& apk add cmake \
+	&& curl -SL "https://github.com/alanxz/rabbitmq-c/archive/v0.10.0.tar.gz" -o rabbitc.tar.gz \
+	&& tar -xf rabbitc.tar.gz -C rabbitc --strip-components=1 \
+	&& rm rabbitc.tar.gz \
+		&& ( \
+			  cd rabbitc \
+			  && cmake . -DCMAKE_INSTALL_PREFIX=/usr/include/rabbitmqc \
+			  && make && make install \
+			  && cp -R /usr/include/rabbitmqc/lib64/ /usr/include/rabbitmqc/lib \
+			) \
+	&& printf "/usr/include/rabbitmqc" | pecl install amqp \
+	&& rm -r /tmp/rabbitc

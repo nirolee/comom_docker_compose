@@ -1,0 +1,3 @@
+1. docker 启动失败: 错误原因:  Error while creating filesystem xfs on device docker-253:1-135785434-base: exit status 1  storage-driver=devicemapper
+如果查看不到具体错误原因, 可直接执行dockerd命令, 手动启动docker服务打出错误日志.
+解决办法: yum update xfsprogs

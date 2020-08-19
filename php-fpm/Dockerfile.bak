@@ -1,0 +1,74 @@
+ARG INSTALL_PHP_VERSION
+FROM php:${INSTALL_PHP_VERSION}-fpm-alpine
+
+ARG INSTALL_PHP_VERSION
+#COPY ./ini/php${INSTALL_PHP_VERSION}.ini /usr/local/etc/php/php.ini
+#RUN cp /usr/local/etc/php/php.ini-develop /usr/local/etc/php/php.ini
+
+RUN pear config-set php_ini /usr/local/etc/php/php.ini
+
+RUN echo "http://mirrors.aliyun.com/alpine/latest-stable/main/" > /etc/apk/repositories \
+  	&& echo "http://mirrors.aliyun.com/alpine/latest-stable/community/" >> /etc/apk/repositories \
+	&& apk add --no-cache ca-certificates \
+	&& apk update \
+	&& apk upgrade
+
+RUN apk add -U tzdata \
+	&& cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
+    	&& apk del tzdata
+
+RUN apk add git \
+	&& curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/bin/ --filename=composer \
+	&& apk add autoconf gcc g++ make libffi-dev openssl-dev libxml2-dev
+
+RUN set -ex \
+	&& docker-php-ext-install bcmath \
+	&& docker-php-ext-install sockets \
+	&& docker-php-ext-install sysvshm \
+	&& docker-php-ext-install sysvsem \
+	&& docker-php-ext-install sysvmsg \
+	&& docker-php-ext-install pdo_mysql \
+	&& docker-php-ext-install iconv \
+	&& docker-php-ext-install calendar \
+	&& docker-php-ext-install pcntl \
+	&& docker-php-ext-install shmop \
+	&& docker-php-ext-install exif \
+	&& apk add gettext gettext-dev \
+	&& docker-php-ext-install gettext \
+	&& apk add gmp-dev \
+	&& docker-php-ext-install gmp \
+	&& apk add libxslt-dev \
+	&& docker-php-ext-install xsl \
+        #&& apk add libxml2 \
+	&& apk add libzip-dev \
+	&& docker-php-ext-install -j 2 zip \
+	&& apk add libpng-dev freetype-dev libjpeg-turbo-dev \
+        #&& docker-php-ext-configure gd --with-freetype-dir=/usr/include/ --with-jpeg-dir=/usr/include/ --with-png-dir=/usr/include/ \
+	&& docker-php-ext-configure gd \
+        && docker-php-ext-install -j$(nproc) gd
+
+COPY ./ini/xdebug.ini /usr/local/etc/php/conf.d/xdebug.ini
+RUN pecl install xdebug && \
+    sed -i "s/xdebug.remote_autostart=0/xdebug.remote_autostart=1/" /usr/local/etc/php/conf.d/xdebug.ini && \
+    sed -i "s/xdebug.remote_enable=0/xdebug.remote_enable=1/" /usr/local/etc/php/conf.d/xdebug.ini && \
+    sed -i "s/xdebug.cli_color=0/xdebug.cli_color=1/" /usr/local/etc/php/conf.d/xdebug.ini
+
+RUN pecl channel-update pecl.php.net
+RUN pecl install mongodb
+RUN set -ex \
+	&& pecl install igbinary \
+	&& pecl install msgpack \
+	&& printf "\y" | pecl install -o -f redis \ 
+	#&& apk add libmemcached-dev \
+	#&& pecl install --nobuild memcached \
+	#&& cd "$(pecl config-get temp_dir)/memcached" \
+	#&& phpize \
+	#&& ./configure --enable-memcached-json --enable-memcached-igbinary --enable-memcached-msgpack --enable-memcached-sasl \
+	#&& make \
+	#&& make install \
+	#&& docker-php-ext-enable memcached \
+	&& rm -rf /tmp/*
+
+COPY ./startup.sh /opt/
+RUN sed -i 's/\r//g' /opt/startup.sh
+RUN chmod u+x /opt/startup.sh && /opt/startup.sh
